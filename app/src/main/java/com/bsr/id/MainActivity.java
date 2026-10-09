@@ -195,9 +195,12 @@ public class MainActivity extends Activity {
             "\n" +
             "        // Audio Context (Ditunda & dilindungi try-catch agar tidak crash di Android)\n" +
             "        let audioCtx = null;\n" +
-            "        let engineOscillator = null;\n" +
+            "        let engineOsc1 = null;\n" +
+            "        let engineOsc2 = null;\n" +
+            "        let engineFilter = null;\n" +
             "\n" +
             "        function initAudio() {\n" +
+            "            if (!audioCtx) {\n" +
             "            if (!audioCtx) {\n" +
             "                try {\n" +
             "                    const AudioContext = window.AudioContext || window.webkitAudioContext;\n" +
@@ -207,33 +210,60 @@ public class MainActivity extends Activity {
             "        }\n" +
             "\n" +
             "        function playEngineSound() {\n" +
-            "            if (!audioCtx || engineOscillator) return;\n" +
+            "            if (!audioCtx || engineOsc1) return;\n" +
             "            try {\n" +
-            "                engineOscillator = audioCtx.createOscillator();\n" +
+            "                engineOsc1 = audioCtx.createOscillator();\n" +
+            "                engineOsc2 = audioCtx.createOscillator();\n" +
+            "                engineFilter = audioCtx.createBiquadFilter();\n" +
             "                const gainNode = audioCtx.createGain();\n" +
-            "                engineOscillator.type = 'square';\n" +
-            "                engineOscillator.frequency.value = 50 + (gameState.speed / 2); \n" +
-            "                gainNode.gain.value = 0.1;\n" +
-            "                engineOscillator.connect(gainNode);\n" +
+            "                \n" +
+            "                // Racikan suara mesin Bus Diesel halus\n" +
+            "                engineOsc1.type = 'triangle'; // Suara dengung dasar (hum)\n" +
+            "                engineOsc2.type = 'sawtooth'; // Suara getaran/deru mesin\n" +
+            "                engineFilter.type = 'lowpass'; // Filter peredam agar tidak cempreng\n" +
+            "                \n" +
+            "                gainNode.gain.value = 0.2; // Volume utama\n" +
+            "                \n" +
+            "                // Sambungkan rute suara: Osc -> Filter -> Gain -> Speaker\n" +
+            "                engineOsc1.connect(engineFilter);\n" +
+            "                engineOsc2.connect(engineFilter);\n" +
+            "                engineFilter.connect(gainNode);\n" +
             "                gainNode.connect(audioCtx.destination);\n" +
-            "                engineOscillator.start();\n" +
+            "                \n" +
+            "                updateEnginePitch(); // Atur nada idle di awal\n" +
+            "                \n" +
+            "                engineOsc1.start();\n" +
+            "                engineOsc2.start();\n" +
             "            } catch(e) {}\n" +
             "        }\n" +
             "\n" +
             "        function stopEngineSound() {\n" +
-            "            if (engineOscillator) {\n" +
+            "            if (engineOsc1) {\n" +
             "                try {\n" +
-            "                    engineOscillator.stop();\n" +
-            "                    engineOscillator.disconnect();\n" +
+            "                    engineOsc1.stop();\n" +
+            "                    engineOsc1.disconnect();\n" +
+            "                    engineOsc2.stop();\n" +
+            "                    engineOsc2.disconnect();\n" +
+            "                    engineFilter.disconnect();\n" +
             "                } catch(e) {}\n" +
-            "                engineOscillator = null;\n" +
+            "                engineOsc1 = null;\n" +
+            "                engineOsc2 = null;\n" +
             "            }\n" +
             "        }\n" +
             "\n" +
             "        function updateEnginePitch() {\n" +
-            "            if (engineOscillator && audioCtx) {\n" +
+            "            if (engineOsc1 && engineOsc2 && engineFilter && audioCtx) {\n" +
             "                try {\n" +
-            "                    engineOscillator.frequency.setValueAtTime(50 + (gameState.speed * 1.5), audioCtx.currentTime);\n" +
+            "                    // RPM Mesin berdasarkan kecepatan\n" +
+            "                    const baseFreq = 40 + (gameState.speed * 0.9);\n" + 
+            "                    \n" +
+            "                    engineOsc1.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);\n" +
+            "                    // Sub-oktaf (dibagi 2) agar ada sensasi getaran berat khas bus besar\n" +
+            "                    engineOsc2.frequency.setValueAtTime(baseFreq / 2, audioCtx.currentTime); \n" +
+            "                    \n" +
+            "                    // Semakin kencang (di gas), filter suara makin terbuka (suara makin nyaring/mengaum)\n" +
+            "                    const filterCutoff = 130 + (gameState.speed * 12);\n" +
+            "                    engineFilter.frequency.setValueAtTime(filterCutoff, audioCtx.currentTime);\n" +
             "                } catch(e) {}\n" +
             "            }\n" +
             "        }\n" +
