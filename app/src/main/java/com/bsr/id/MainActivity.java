@@ -165,123 +165,138 @@ public class MainActivity extends Activity {
             "        let voiceID = null;\n" +
             "\n" +
             "        function initVoice() {\n" +
-            "            // Coba cari suara bahasa Indonesia\n" +
-            "            const voices = synth.getVoices();\n" +
-            "            for(let i = 0; i < voices.length; i++) {\n" +
-            "                if(voices[i].lang.includes('id') || voices[i].lang.includes('ID')) {\n" +
-            "                    voiceID = voices[i];\n" +
-            "                    break;\n" +
+            "            try {\n" +
+            "                if(!synth) return;\n" +
+            "                const voices = synth.getVoices();\n" +
+            "                for(let i = 0; i < voices.length; i++) {\n" +
+            "                    if(voices[i].lang.includes('id') || voices[i].lang.includes('ID')) {\n" +
+            "                        voiceID = voices[i];\n" +
+            "                        break;\n" +
+            "                    }\n" +
             "                }\n" +
-            "            }\n" +
+            "            } catch(e) { console.log(e); }\n" +
             "        }\n" +
             "\n" +
-            "        // Pastikan voice di-load (dibutuhkan beberapa browser)\n" +
-            "        if (speechSynthesis.onvoiceschanged !== undefined) {\n" +
-            "            speechSynthesis.onvoiceschanged = initVoice;\n" +
+            "        if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {\n" +
+            "            window.speechSynthesis.onvoiceschanged = initVoice;\n" +
             "        }\n" +
             "\n" +
             "        function speak(text, interrupt = true) {\n" +
-            "            if (interrupt) {\n" +
-            "                synth.cancel(); // Hentikan ucapan sebelumnya agar responsif\n" +
-            "            }\n" +
-            "            \n" +
-            "            const utterThis = new SpeechSynthesisUtterance(text);\n" +
-            "            if (voiceID) utterThis.voice = voiceID;\n" +
-            "            utterThis.rate = 1.2; // Sedikit lebih cepat agar instruksi cepat tersampaikan\n" +
-            "            utterThis.pitch = 1;\n" +
-            "            \n" +
-            "            synth.speak(utterThis);\n" +
+            "            try {\n" +
+            "                if (!synth) return;\n" +
+            "                if (interrupt) synth.cancel();\n" +
+            "                const utterThis = new SpeechSynthesisUtterance(text);\n" +
+            "                if (voiceID) utterThis.voice = voiceID;\n" +
+            "                utterThis.rate = 1.2;\n" +
+            "                utterThis.pitch = 1;\n" +
+            "                synth.speak(utterThis);\n" +
+            "            } catch(e) { console.log(e); }\n" +
             "        }\n" +
             "\n" +
-            "        // Menggunakan Web Audio API untuk efek suara sederhana karena kita tidak punya aset file audio luar\n" +
-            "        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();\n" +
+            "        // Audio Context (Ditunda & dilindungi try-catch agar tidak crash di Android)\n" +
+            "        let audioCtx = null;\n" +
             "        let engineOscillator = null;\n" +
             "\n" +
+            "        function initAudio() {\n" +
+            "            if (!audioCtx) {\n" +
+            "                try {\n" +
+            "                    const AudioContext = window.AudioContext || window.webkitAudioContext;\n" +
+            "                    if(AudioContext) audioCtx = new AudioContext();\n" +
+            "                } catch(e) { console.log(\"Web Audio Error\", e); }\n" +
+            "            }\n" +
+            "        }\n" +
+            "\n" +
             "        function playEngineSound() {\n" +
-            "            if (engineOscillator) return;\n" +
-            "            \n" +
-            "            engineOscillator = audioCtx.createOscillator();\n" +
-            "            const gainNode = audioCtx.createGain();\n" +
-            "            \n" +
-            "            engineOscillator.type = 'square';\n" +
-            "            // Frekuensi dasar mesin\n" +
-            "            engineOscillator.frequency.value = 50 + (gameState.speed / 2); \n" +
-            "            \n" +
-            "            // Volume rendah\n" +
-            "            gainNode.gain.value = 0.1;\n" +
-            "            \n" +
-            "            engineOscillator.connect(gainNode);\n" +
-            "            gainNode.connect(audioCtx.destination);\n" +
-            "            engineOscillator.start();\n" +
+            "            if (!audioCtx || engineOscillator) return;\n" +
+            "            try {\n" +
+            "                engineOscillator = audioCtx.createOscillator();\n" +
+            "                const gainNode = audioCtx.createGain();\n" +
+            "                engineOscillator.type = 'square';\n" +
+            "                engineOscillator.frequency.value = 50 + (gameState.speed / 2); \n" +
+            "                gainNode.gain.value = 0.1;\n" +
+            "                engineOscillator.connect(gainNode);\n" +
+            "                gainNode.connect(audioCtx.destination);\n" +
+            "                engineOscillator.start();\n" +
+            "            } catch(e) {}\n" +
             "        }\n" +
             "\n" +
             "        function stopEngineSound() {\n" +
             "            if (engineOscillator) {\n" +
-            "                engineOscillator.stop();\n" +
-            "                engineOscillator.disconnect();\n" +
+            "                try {\n" +
+            "                    engineOscillator.stop();\n" +
+            "                    engineOscillator.disconnect();\n" +
+            "                } catch(e) {}\n" +
             "                engineOscillator = null;\n" +
             "            }\n" +
             "        }\n" +
             "\n" +
             "        function updateEnginePitch() {\n" +
-            "            if (engineOscillator) {\n" +
-            "                // Pitch naik seiring kecepatan\n" +
-            "                engineOscillator.frequency.setValueAtTime(50 + (gameState.speed * 1.5), audioCtx.currentTime);\n" +
+            "            if (engineOscillator && audioCtx) {\n" +
+            "                try {\n" +
+            "                    engineOscillator.frequency.setValueAtTime(50 + (gameState.speed * 1.5), audioCtx.currentTime);\n" +
+            "                } catch(e) {}\n" +
             "            }\n" +
             "        }\n" +
             "\n" +
             "        function playHornSound() {\n" +
-            "            // Efek suara klakson sederhana\n" +
-            "            const osc = audioCtx.createOscillator();\n" +
-            "            const gainNode = audioCtx.createGain();\n" +
-            "            \n" +
-            "            osc.type = 'sawtooth';\n" +
-            "            osc.frequency.setValueAtTime(400, audioCtx.currentTime); // Nada klakson\n" +
-            "            osc.frequency.setValueAtTime(410, audioCtx.currentTime + 0.1);\n" +
-            "            \n" +
-            "            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);\n" +
-            "            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);\n" +
-            "            \n" +
-            "            osc.connect(gainNode);\n" +
-            "            gainNode.connect(audioCtx.destination);\n" +
-            "            osc.start();\n" +
-            "            osc.stop(audioCtx.currentTime + 0.5);\n" +
+            "            if(!audioCtx) return;\n" +
+            "            try {\n" +
+            "                const osc = audioCtx.createOscillator();\n" +
+            "                const gainNode = audioCtx.createGain();\n" +
+            "                osc.type = 'sawtooth';\n" +
+            "                osc.frequency.setValueAtTime(400, audioCtx.currentTime);\n" +
+            "                osc.frequency.setValueAtTime(410, audioCtx.currentTime + 0.1);\n" +
+            "                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);\n" +
+            "                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);\n" +
+            "                osc.connect(gainNode);\n" +
+            "                gainNode.connect(audioCtx.destination);\n" +
+            "                osc.start();\n" +
+            "                osc.stop(audioCtx.currentTime + 0.5);\n" +
+            "            } catch(e) {}\n" +
             "        }\n" +
             "\n" +
             "        function updateUI() {\n" +
             "            speedText.innerText = `Kecepatan: ${Math.round(gameState.speed)} km/jam`;\n" +
-            "            \n" +
             "            if (gameState.engineOn) {\n" +
             "                statusText.innerText = `Mesin Menyala. Arah: ${gameState.direction}`;\n" +
             "                statusText.className = \"text-2xl text-green-400\";\n" +
-            "                btnEngine.style.backgroundColor = \"#2f855a\"; // Hijau saat menyala\n" +
+            "                btnEngine.style.backgroundColor = \"#2f855a\";\n" +
             "                btnEngine.innerText = \"MATIKAN MESIN\";\n" +
             "            } else {\n" +
             "                statusText.innerText = \"Mesin Mati\";\n" +
             "                statusText.className = \"text-2xl text-red-400\";\n" +
-            "                btnEngine.style.backgroundColor = \"#c53030\"; // Merah saat mati\n" +
+            "                btnEngine.style.backgroundColor = \"#c53030\";\n" +
             "                btnEngine.innerText = \"NYALAKAN MESIN\";\n" +
             "            }\n" +
             "        }\n" +
             "\n" +
-            "\n" +
-            "        // Tombol Mulai (Wajib untuk mengaktifkan Web Audio & Speech di browser modern)\n" +
-            "        btnStart.addEventListener('click', () => {\n" +
-            "            // Resume audio context jika suspended (kebijakan autoplay browser)\n" +
-            "            if (audioCtx.state === 'suspended') {\n" +
-            "                audioCtx.resume();\n" +
-            "            }\n" +
+            "        // Fungsi Mulai Game\n" +
+            "        const startGame = (e) => {\n" +
+            "            if(e) e.preventDefault();\n" +
+            "            if(gameState.isStarted) return;\n" +
             "            \n" +
+            "            initAudio();\n" +
+            "            if (audioCtx && audioCtx.state === 'suspended') {\n" +
+            "                try { audioCtx.resume(); } catch(e) {}\n" +
+            "            }\n" +
             "            initVoice();\n" +
+            "            \n" +
             "            startScreen.classList.add('hidden');\n" +
             "            gameContainer.classList.remove('hidden');\n" +
             "            gameState.isStarted = true;\n" +
             "            \n" +
-            "            speak(\"Selamat datang di Simulator Bus. Layar terbagi menjadi tombol-tombol besar. Atas untuk mesin, tengah kiri kanan untuk kemudi, bawah kiri untuk rem, bawah kanan untuk gas.\");\n" +
-            "        });\n" +
+            "            setTimeout(() => {\n" +
+            "                speak(\"Selamat datang di Simulator Bus. Layar terbagi menjadi tombol-tombol besar. Atas untuk mesin, tengah kiri kanan untuk kemudi, bawah kiri untuk rem, bawah kanan untuk gas.\");\n" +
+            "            }, 500);\n" +
+            "        };\n" +
+            "\n" +
+            "        // Menempelkan event klik dan sentuh\n" +
+            "        btnStart.addEventListener('click', startGame);\n" +
+            "        btnStart.addEventListener('touchstart', startGame, {passive: false});\n" +
             "\n" +
             "        // Tombol Mesin\n" +
-            "        btnEngine.addEventListener('click', () => {\n" +
+            "        const toggleEngine = (e) => {\n" +
+            "            if(e) e.preventDefault();\n" +
             "            if (!gameState.engineOn) {\n" +
             "                gameState.engineOn = true;\n" +
             "                playEngineSound();\n" +
@@ -293,27 +308,25 @@ public class MainActivity extends Activity {
             "                speak(\"Mesin bus dimatikan.\");\n" +
             "            }\n" +
             "            updateUI();\n" +
-            "        });\n" +
+            "        };\n" +
+            "        btnEngine.addEventListener('click', toggleEngine);\n" +
+            "        btnEngine.addEventListener('touchstart', toggleEngine, {passive: false});\n" +
             "\n" +
             "        // Tombol Gas\n" +
-            "        // Menggunakan mousedown/touchstart untuk simulasi menekan pedal\n" +
             "        let gasInterval;\n" +
             "        const pressGas = (e) => {\n" +
-            "            e.preventDefault(); // Mencegah aksi default (seperti scrolling/highlighting)\n" +
+            "            if(e) e.preventDefault();\n" +
             "            if (!gameState.engineOn) {\n" +
             "                speak(\"Nyalakan mesin terlebih dahulu.\");\n" +
             "                return;\n" +
             "            }\n" +
-            "            \n" +
             "            speak(\"Gas\", false);\n" +
-            "            \n" +
+            "            clearInterval(gasInterval);\n" +
             "            gasInterval = setInterval(() => {\n" +
             "                if (gameState.speed < gameState.maxSpeed) {\n" +
             "                    gameState.speed += 1;\n" +
             "                    updateUI();\n" +
             "                    updateEnginePitch();\n" +
-            "                    \n" +
-            "                    // Baca kecepatan setiap kelipatan 10\n" +
             "                    if (Math.round(gameState.speed) % 10 === 0 && Math.round(gameState.speed) > 0) {\n" +
             "                        speak(`${Math.round(gameState.speed)} kilometer per jam`, false);\n" +
             "                    }\n" +
@@ -321,13 +334,12 @@ public class MainActivity extends Activity {
             "            }, 100);\n" +
             "        };\n" +
             "        const releaseGas = (e) => {\n" +
-            "            e.preventDefault();\n" +
+            "            if(e) e.preventDefault();\n" +
             "            clearInterval(gasInterval);\n" +
             "            if(gameState.engineOn && gameState.speed > 0) speak(\"Lepas Gas\", false);\n" +
             "        };\n" +
-            "\n" +
             "        btnGas.addEventListener('mousedown', pressGas);\n" +
-            "        btnGas.addEventListener('touchstart', pressGas, {passive: false}); // Tambahan passive: false untuk WebView\n" +
+            "        btnGas.addEventListener('touchstart', pressGas, {passive: false});\n" +
             "        btnGas.addEventListener('mouseup', releaseGas);\n" +
             "        btnGas.addEventListener('touchend', releaseGas);\n" +
             "        btnGas.addEventListener('mouseleave', releaseGas);\n" +
@@ -335,14 +347,13 @@ public class MainActivity extends Activity {
             "        // Tombol Rem\n" +
             "        let brakeInterval;\n" +
             "        const pressBrake = (e) => {\n" +
-            "            e.preventDefault();\n" +
+            "            if(e) e.preventDefault();\n" +
             "            if (gameState.speed === 0) return;\n" +
-            "            \n" +
             "            speak(\"Mengerem\", false);\n" +
-            "            \n" +
+            "            clearInterval(brakeInterval);\n" +
             "            brakeInterval = setInterval(() => {\n" +
             "                if (gameState.speed > 0) {\n" +
-            "                    gameState.speed -= 2; // Rem lebih kuat dari gas\n" +
+            "                    gameState.speed -= 2;\n" +
             "                    if (gameState.speed <= 0) {\n" +
             "                        gameState.speed = 0;\n" +
             "                        clearInterval(brakeInterval);\n" +
@@ -354,56 +365,44 @@ public class MainActivity extends Activity {
             "            }, 100);\n" +
             "        };\n" +
             "        const releaseBrake = (e) => {\n" +
-            "            e.preventDefault();\n" +
+            "            if(e) e.preventDefault();\n" +
             "            clearInterval(brakeInterval);\n" +
             "        };\n" +
-            "\n" +
             "        btnBrake.addEventListener('mousedown', pressBrake);\n" +
             "        btnBrake.addEventListener('touchstart', pressBrake, {passive: false});\n" +
             "        btnBrake.addEventListener('mouseup', releaseBrake);\n" +
             "        btnBrake.addEventListener('touchend', releaseBrake);\n" +
             "        btnBrake.addEventListener('mouseleave', releaseBrake);\n" +
             "\n" +
-            "        // Tombol Belok Kiri\n" +
-            "        btnLeft.addEventListener('touchstart', (e) => {\n" +
-            "            e.preventDefault();\n" +
+            "        // Tombol Belok\n" +
+            "        const turnLeft = (e) => {\n" +
+            "            if(e) e.preventDefault();\n" +
             "            if (!gameState.engineOn) return;\n" +
-            "            \n" +
             "            gameState.direction = 'Kiri';\n" +
             "            updateUI();\n" +
-            "            \n" +
-            "            // Beri umpan balik suara dan klakson kecil\n" +
             "            speak(\"Belok Kiri\");\n" +
             "            playHornSound();\n" +
-            "            \n" +
-            "            // Kembalikan ke tengah setelah beberapa saat\n" +
-            "            setTimeout(() => {\n" +
-            "                gameState.direction = 'Tengah';\n" +
-            "                updateUI();\n" +
-            "            }, 2000);\n" +
-            "}, {passive: false}); // Menggunakan touchstart agar responsif di Android WebView\n" +
+            "            setTimeout(() => { gameState.direction = 'Tengah'; updateUI(); }, 2000);\n" +
+            "        };\n" +
+            "        btnLeft.addEventListener('click', turnLeft);\n" +
+            "        btnLeft.addEventListener('touchstart', turnLeft, {passive: false});\n" +
             "\n" +
-            "        // Tombol Belok Kanan\n" +
-            "        btnRight.addEventListener('touchstart', (e) => {\n" +
-            "            e.preventDefault();\n" +
+            "        const turnRight = (e) => {\n" +
+            "            if(e) e.preventDefault();\n" +
             "            if (!gameState.engineOn) return;\n" +
-            "            \n" +
             "            gameState.direction = 'Kanan';\n" +
             "            updateUI();\n" +
-            "            \n" +
             "            speak(\"Belok Kanan\");\n" +
             "            playHornSound();\n" +
-            "            \n" +
-            "            setTimeout(() => {\n" +
-            "                gameState.direction = 'Tengah';\n" +
-            "                updateUI();\n" +
-            "            }, 2000);\n" +
-            "        }, {passive: false});\n" +
+            "            setTimeout(() => { gameState.direction = 'Tengah'; updateUI(); }, 2000);\n" +
+            "        };\n" +
+            "        btnRight.addEventListener('click', turnRight);\n" +
+            "        btnRight.addEventListener('touchstart', turnRight, {passive: false});\n" +
             "\n" +
-            "        // Loop simulasi dasar (kehilangan kecepatan karena gesekan jika tidak digas)\n" +
+            "        // Loop gesekan\n" +
             "        setInterval(() => {\n" +
             "            if (gameState.engineOn && !gasInterval && !brakeInterval && gameState.speed > 0) {\n" +
-            "                gameState.speed -= 0.1; // Gesekan alami\n" +
+            "                gameState.speed -= 0.1;\n" +
             "                if (gameState.speed < 0) gameState.speed = 0;\n" +
             "                updateUI();\n" +
             "                updateEnginePitch();\n" +
