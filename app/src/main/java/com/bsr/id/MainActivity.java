@@ -9,6 +9,8 @@ import android.webkit.WebViewClient;
 import android.webkit.CookieManager;
 import android.view.Window;
 import android.graphics.Color;
+import android.view.ViewGroup;
+import android.util.Base64;
 
 public class MainActivity extends Activity {
     private WebView web;
@@ -419,7 +421,10 @@ public class MainActivity extends Activity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         web = new WebView(this);
-        web.setBackgroundColor(Color.TRANSPARENT);
+        web.setLayoutParams(new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
         setContentView(web);
 
         WebSettings s = web.getSettings();
@@ -431,6 +436,10 @@ public class MainActivity extends Activity {
         s.setBuiltInZoomControls(false); // Menonaktifkan zoom sangat penting untuk game sentuh
         s.setDisplayZoomControls(false);
         s.setSupportZoom(false);
+        
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
+
         // PENTING: Memungkinkan audio diputar tanpa klik dari pengguna (bergantung pada versi Android)
         // Meskipun di HTML kita sudah akali dengan layar start.
         s.setMediaPlaybackRequiresUserGesture(false); 
@@ -442,8 +451,8 @@ public class MainActivity extends Activity {
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
         } else {
-            // Memuat String HTML ke WebView
-            web.loadDataWithBaseURL("file:///android_asset/", GAME_HTML, "text/html", "UTF-8", null);
+            String encodedHtml = Base64.encodeToString(GAME_HTML.getBytes(), Base64.NO_WRAP);
+            web.loadData(encodedHtml, "text/html", "base64");
         }
     }
 
