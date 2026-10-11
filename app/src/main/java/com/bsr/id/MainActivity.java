@@ -193,14 +193,13 @@ public class MainActivity extends Activity {
             "            } catch(e) { console.log(e); }\n" +
             "        }\n" +
             "\n" +
-            "        // Audio Context (Ditunda & dilindungi try-catch agar tidak crash di Android)\n" +
+            "        // Audio Context (Diperbaiki dari Syntax Error sebelumnya agar Start berfungsi)\n" +
             "        let audioCtx = null;\n" +
             "        let engineOsc1 = null;\n" +
             "        let engineOsc2 = null;\n" +
             "        let engineFilter = null;\n" +
             "\n" +
             "        function initAudio() {\n" +
-            "            if (!audioCtx) {\n" +
             "            if (!audioCtx) {\n" +
             "                try {\n" +
             "                    const AudioContext = window.AudioContext || window.webkitAudioContext;\n" +
@@ -217,14 +216,14 @@ public class MainActivity extends Activity {
             "                engineFilter = audioCtx.createBiquadFilter();\n" +
             "                const gainNode = audioCtx.createGain();\n" +
             "                \n" +
-            "                // Racikan suara mesin Bus Diesel halus\n" +
-            "                engineOsc1.type = 'triangle'; // Suara dengung dasar (hum)\n" +
-            "                engineOsc2.type = 'sawtooth'; // Suara getaran/deru mesin\n" +
+            "                // Racikan suara mesin Bus Halus (Deep Bass Rumble khas Indonesia)\n" +
+            "                engineOsc1.type = 'sawtooth'; // Getaran utama mesin diesel\n" +
+            "                engineOsc2.type = 'sine'; // Sub-bass untuk dentuman halus (ngorok)\n" +
             "                engineFilter.type = 'lowpass'; // Filter peredam agar tidak cempreng\n" +
             "                \n" +
-            "                gainNode.gain.value = 0.2; // Volume utama\n" +
+            "                gainNode.gain.value = 0.3; // Volume utama\n" +
             "                \n" +
-            "                // Sambungkan rute suara: Osc -> Filter -> Gain -> Speaker\n" +
+            "                // Menyambungkan rute suara\n" +
             "                engineOsc1.connect(engineFilter);\n" +
             "                engineOsc2.connect(engineFilter);\n" +
             "                engineFilter.connect(gainNode);\n" +
@@ -254,15 +253,15 @@ public class MainActivity extends Activity {
             "        function updateEnginePitch() {\n" +
             "            if (engineOsc1 && engineOsc2 && engineFilter && audioCtx) {\n" +
             "                try {\n" +
-            "                    // RPM Mesin berdasarkan kecepatan\n" +
-            "                    const baseFreq = 40 + (gameState.speed * 0.9);\n" + 
+            "                    // Nada rendah (60Hz) untuk idle bus, naik perlahan saat digas\n" +
+            "                    const baseFreq = 60 + (gameState.speed * 0.5);\n" + 
             "                    \n" +
             "                    engineOsc1.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);\n" +
-            "                    // Sub-oktaf (dibagi 2) agar ada sensasi getaran berat khas bus besar\n" +
+            "                    // Sub-oktaf (30Hz) untuk sensasi getaran bodi bus yang dalam\n" +
             "                    engineOsc2.frequency.setValueAtTime(baseFreq / 2, audioCtx.currentTime); \n" +
             "                    \n" +
-            "                    // Semakin kencang (di gas), filter suara makin terbuka (suara makin nyaring/mengaum)\n" +
-            "                    const filterCutoff = 130 + (gameState.speed * 12);\n" +
+            "                    // Membuka filter perlahan saat digas agar auman lebih terdengar jelas\n" +
+            "                    const filterCutoff = 150 + (gameState.speed * 8);\n" +
             "                    engineFilter.frequency.setValueAtTime(filterCutoff, audioCtx.currentTime);\n" +
             "                } catch(e) {}\n" +
             "            }\n" +
